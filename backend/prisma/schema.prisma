@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+
+  // NestJS compila a CommonJS. Sin esto, el generador emite ESM (usa
+  // `import.meta.url`), que no se puede transpilar a CJS: el proceso muere al
+  // arrancar con "exports is not defined in ES module scope".
+  moduleFormat = "cjs"
+}
+
+// En Prisma 7 las URLs de conexión viven en `prisma.config.ts`, no aquí.
+datasource db {
+  provider = "postgresql"
+}
+
+/// Estilo artístico aplicado al prompt antes de generar.
+enum Estilo {
+  REALISTA
+  ANIME
+  PIXAR
+  GHIBLI
+  FANTASY
+  CYBERPUNK
+  DIGITAL_ART
+  RENDER_3D
+}
+
+/// Relación de aspecto de la imagen resultante.
+enum Formato {
+  CUADRADO // 1:1
+  HORIZONTAL // 16:9
+  VERTICAL // 9:16
+}
+
+/// Nivel de calidad; determina la resolución final.
+enum Calidad {
+  NORMAL
+  HD
+  ULTRA
+}
+
+/// Petición del usuario, con el prompt original y su versión optimizada por el LLM.
+model Prompt {
+  id             String  @id @default(uuid()) @db.Uuid
+  promptOriginal String  @map("prompt_original") @db.Text
+  promptMejorado String? @map("prompt_mejorado") @db.Text
+  estilo         Estilo
+  formato        Formato
+  calidad        Calidad
+  proveedor      String  @db.VarChar(50)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  generations Generation[]
+
+  @@index([createdAt(sort: Desc)])
+  @@map("prompts")
+}
+
+/// Imagen concreta producida por un proveedor para un Prompt dado.
+model Generation {
+  id       String @id @default(uuid()) @db.Uuid
+  promptId String @map("prompt_id") @db.Uuid
+
+  imageUrl    String @map("image_url") @db.Text
+  storagePath String @map("storage_path") @db.Text
+  width       Int
+  height      Int
+  mimeType    String @default("image/png") @map("mime_type") @db.VarChar(50)
+  fileSize    Int    @default(0) @map("file_size")
+
+  /// Milisegundos transcurridos entre la petición al proveedor y la imagen final.
+  generationTime Int @map("generation_time")
+
+  /// Respuesta cruda del proveedor, guardada para depuración.
+  providerResponse Json? @map("provider_response")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  prompt  Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  gallery Gallery?
+
+  @@index([promptId])
+  @@index([createdAt(sort: Desc)])
+  @@map("generations")
+}
+
+/// Entrada pública de la galería. Una por Generation publicada.
+model Gallery {
+  id           String @id @default(uuid()) @db.Uuid
+  generationId String @unique @map("generation_id") @db.Uuid
+
+  likes    Int     @default(0)
+  views    Int     @default(0)
+  featured Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  generation Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([likes(sort: Desc)])
+  @@index([featured])
+  @@map("gallery")
+}

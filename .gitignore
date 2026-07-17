@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.next/
+out/
+build/
+
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Cualquier fichero que acabe en .env (credenciales.env, prod.env…).
+# La regla `.env` de arriba solo cubre un fichero llamado exactamente `.env`.
+*.env
+!.env.example
+credenciales.env
+
+*.log
+npm-debug.log*
+.DS_Store
+coverage/
+.turbo/
+
+# Configuración personal de Claude Code (no es del equipo).
+.claude/settings.local.json
+
+backend/src/generated/
