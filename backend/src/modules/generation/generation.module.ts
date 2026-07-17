@@ -2,7 +2,10 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { GenerationController } from '../../controllers/generation.controller';
 import { promptEnhancerFactory } from '../../providers/enhancer/enhancer.factory';
-import { imageProviderFactory } from '../../providers/image/image-provider.factory';
+import {
+  imageEditProviderFactory,
+  imageProviderFactory,
+} from '../../providers/image/image-provider.factory';
 import {
   COLA_GENERACION,
   GenerationQueueService,
@@ -27,11 +30,14 @@ import { GenerationProcessor } from './generation.processor';
   controllers: [GenerationController],
   providers: [
     imageProviderFactory,
+    imageEditProviderFactory,
     promptEnhancerFactory,
     StorageService,
     GenerationService,
     GenerationQueueService,
     GenerationProcessor,
   ],
+  // El health controller consulta si la cámara está disponible.
+  exports: [GenerationService],
 })
 export class GenerationModule {}

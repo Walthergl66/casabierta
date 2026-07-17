@@ -1,11 +1,16 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { JobProgress, Queue } from 'bullmq';
+import { EstilizarFotoDto } from '../controllers/dto/estilizar-foto.dto';
 import { GenerarImagenDto } from '../controllers/dto/generar-imagen.dto';
 import { GenerationDto } from './generation.service';
 
 /** Nombre de la cola. Compartido por el productor y el worker. */
 export const COLA_GENERACION = 'generacion-imagenes';
+
+/** Nombres de trabajo. El worker los usa para saber qué pipeline correr. */
+export const TRABAJO_TEXTO = 'generar';
+export const TRABAJO_FOTO = 'estilizar-foto';
 
 /** Estados que el frontend distingue para pintar la UI. */
 export type EstadoTrabajo =
@@ -30,8 +35,13 @@ export interface EstadoGeneracion {
   readonly error?: string;
 }
 
-/** Datos que el worker recibe con cada trabajo. */
-export type DatosTrabajo = GenerarImagenDto;
+/**
+ * Datos que el worker recibe con cada trabajo.
+ *
+ * Unión discriminada por el nombre del trabajo (`job.name`): el worker mira ese
+ * nombre para saber cuál de las dos formas tiene `job.data`.
+ */
+export type DatosTrabajo = GenerarImagenDto | EstilizarFotoDto;
 
 /** Lo que el worker adjunta al progreso, para que el cliente lo lea. */
 interface ProgresoTrabajo {
@@ -50,9 +60,9 @@ interface ProgresoTrabajo {
 export class GenerationQueueService {
   constructor(@InjectQueue(COLA_GENERACION) private readonly cola: Queue<DatosTrabajo>) {}
 
-  /** Encola una generación y devuelve su identificador. */
+  /** Encola una generación por texto y devuelve su identificador. */
   async encolar(dto: GenerarImagenDto): Promise<string> {
-    const job = await this.cola.add('generar', dto, {
+    const job = await this.cola.add(TRABAJO_TEXTO, dto, {
       // Un fallo del proveedor suele ser transitorio; el propio proveedor ya
       // reintenta internamente, así que aquí basta con un intento extra.
       attempts: 2,
@@ -64,6 +74,21 @@ export class GenerationQueueService {
 
     // BullMQ tipa el id como opcional, pero siempre existe salvo para trabajos
     // repetibles, que aquí no usamos.
+    return job.id ?? '';
+  }
+
+  /** Encola el estilizado de una foto. */
+  async encolarFoto(dto: EstilizarFotoDto): Promise<string> {
+    const job = await this.cola.add(TRABAJO_FOTO, dto, {
+      // Un intento único: cada llamada a OpenAI cuesta dinero, y los fallos
+      // aquí (política de contenido, clave inválida) no se arreglan repitiendo.
+      attempts: 1,
+      // La foto en base64 va dentro del trabajo; se purga antes que las de
+      // texto para no tener caras de visitantes en Redis más de lo necesario.
+      removeOnComplete: { age: 600, count: 50 },
+      removeOnFail: { age: 600, count: 20 },
+    });
+
     return job.id ?? '';
   }
 

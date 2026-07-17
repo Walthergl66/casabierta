@@ -1,10 +1,12 @@
 import type {
   EstadoGeneracion,
   ErrorApi,
+  EstilizarFotoRequest,
   Generacion,
   GenerarImagenRequest,
   OrdenGaleria,
   PaginaGaleria,
+  Salud,
 } from '@/types/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -70,8 +72,21 @@ export const api = {
     });
   },
 
+  /** Encola el estilizado de una foto de la cámara. */
+  estilizarFoto(request: EstilizarFotoRequest): Promise<{ jobId: string }> {
+    return peticion('/api/generations/photo', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
   estadoGeneracion(jobId: string): Promise<EstadoGeneracion> {
     return peticion(`/api/generations/status/${jobId}`);
+  },
+
+  /** Estado del backend; dice si la cámara está disponible. */
+  salud(): Promise<Salud> {
+    return peticion('/api/health');
   },
 
   historial(limite = 12): Promise<Generacion[]> {

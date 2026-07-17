@@ -111,6 +111,43 @@ export const RESOLUCIONES: Record<
   },
 };
 
+/**
+ * Instrucción para estilizar una FOTO con cada estilo.
+ *
+ * No se reutiliza `MODIFICADOR_DE_ESTILO` porque el problema es otro: aquel
+ * describe una escena que el modelo debe inventar; aquí hay que ordenar una
+ * transformación sobre una foto que ya existe. Todas insisten en conservar la
+ * identidad, la pose y la composición — si el visitante no se reconoce, la demo
+ * no tiene ninguna gracia.
+ */
+export const INSTRUCCION_DE_ESTILO_FOTO: Record<EstiloApi, string> = {
+  realista:
+    'Restyle this photo as a professional studio portrait: dramatic cinematic lighting, shallow depth of field, crisp detail, polished color grading.',
+  anime:
+    'Redraw this photo in Japanese anime style: cel shading, bold clean line art, large expressive eyes, vibrant saturated colors, anime key visual look.',
+  pixar:
+    'Redraw this photo as a Pixar-style 3D animated character: soft global illumination, rounded appealing features, subsurface scattering on the skin, warm cinematic lighting.',
+  ghibli:
+    'Redraw this photo in Studio Ghibli style: hand-painted watercolor look, soft warm nostalgic palette, gentle linework, whimsical storybook atmosphere.',
+  fantasy:
+    'Reimagine this photo as epic fantasy art: the subject as a heroic fantasy character with ornate armor or robes, dramatic volumetric lighting, painterly matte-painting detail.',
+  cyberpunk:
+    'Reimagine this photo in cyberpunk style: neon rim lighting in teal and magenta, holographic reflections, futuristic clothing and subtle tech augmentations, moody rain-slicked night atmosphere.',
+  'digital-art':
+    'Redraw this photo as a stylized digital painting: bold visible brushwork, striking color palette, artstation-quality rendering.',
+  '3d-render':
+    'Redraw this photo as a high-end 3D character render: octane render quality, physically based materials, studio lighting, ray-traced reflections.',
+};
+
+/**
+ * Se antepone a la instrucción de estilo en toda edición de foto.
+ *
+ * Va delante porque en los modelos de difusión los primeros tokens pesan más:
+ * preservar a la persona debe mandar sobre cualquier detalle estético.
+ */
+export const PRESERVAR_IDENTIDAD =
+  'Keep the same person, their facial identity, pose, expression and overall composition clearly recognizable.';
+
 /** Etiquetas legibles, para logs y para la UI. */
 export const ETIQUETA_DE_ESTILO: Record<EstiloApi, string> = {
   realista: 'Realista',

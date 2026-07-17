@@ -39,6 +39,14 @@ enum Calidad {
   ULTRA
 }
 
+/// De dónde salió la imagen.
+enum Origen {
+  /// El usuario escribió un prompt. Se publica en la galería pública.
+  TEXTO
+  /// El usuario hizo una foto con la cámara. NO se publica: puede salir su cara.
+  FOTO
+}
+
 /// Petición del usuario, con el prompt original y su versión optimizada por el LLM.
 model Prompt {
   id             String  @id @default(uuid()) @db.Uuid
@@ -48,6 +56,10 @@ model Prompt {
   formato        Formato
   calidad        Calidad
   proveedor      String  @db.VarChar(50)
+
+  /// TEXTO o FOTO. Las de FOTO nunca llegan a la galería pública.
+  /// Por defecto TEXTO: las filas que ya existían venían todas de un prompt.
+  origen Origen @default(TEXTO)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 

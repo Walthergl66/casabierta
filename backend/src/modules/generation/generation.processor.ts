@@ -2,9 +2,12 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { DomainError } from '../../common/errors/domain.errors';
+import type { EstilizarFotoDto } from '../../controllers/dto/estilizar-foto.dto';
+import type { GenerarImagenDto } from '../../controllers/dto/generar-imagen.dto';
 import {
   COLA_GENERACION,
   DatosTrabajo,
+  TRABAJO_FOTO,
 } from '../../services/generation-queue.service';
 import { GenerationDto, GenerationService } from '../../services/generation.service';
 
@@ -25,12 +28,30 @@ export class GenerationProcessor extends WorkerHost {
   }
 
   async process(job: Job<DatosTrabajo>): Promise<GenerationDto> {
-    this.logger.log(`Procesando trabajo ${job.id}: "${job.data.prompt.slice(0, 60)}"`);
+    const esFoto = job.name === TRABAJO_FOTO;
+
+    // De un trabajo de foto no se registra el contenido: solo el estilo. La
+    // foto en sí es un dato personal y no tiene por qué acabar en los logs.
+    this.logger.log(
+      esFoto
+        ? `Procesando foto ${job.id} (estilo ${(job.data as EstilizarFotoDto).estilo})`
+        : `Procesando trabajo ${job.id}: "${(job.data as GenerarImagenDto).prompt.slice(0, 60)}"`,
+    );
+
+    const reportarProgreso = async (porcentaje: number, etapa: string) => {
+      await job.updateProgress({ porcentaje, etapa });
+    };
 
     try {
-      return await this.generationService.generar(job.data, async (porcentaje, etapa) => {
-        await job.updateProgress({ porcentaje, etapa });
-      });
+      return esFoto
+        ? await this.generationService.estilizarFoto(
+            job.data as EstilizarFotoDto,
+            reportarProgreso,
+          )
+        : await this.generationService.generar(
+            job.data as GenerarImagenDto,
+            reportarProgreso,
+          );
     } catch (error) {
       // Los errores de dominio ya traen un mensaje pensado para el usuario;
       // cualquier otra cosa podría filtrar detalles internos, así que se

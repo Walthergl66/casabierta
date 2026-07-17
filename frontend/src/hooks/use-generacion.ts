@@ -1,12 +1,21 @@
 'use client';
 
 import { api, ApiError } from '@/services/api';
-import type { EstadoGeneracion, GenerarImagenRequest } from '@/types/api';
+import type {
+  EstadoGeneracion,
+  EstilizarFotoRequest,
+  GenerarImagenRequest,
+} from '@/types/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 
 /** Cada cuánto preguntamos al backend por el progreso. */
 const INTERVALO_POLLING_MS = 1_000;
+
+/** Los dos caminos que puede tomar una generación. */
+type PeticionGeneracion =
+  | { tipo: 'texto'; datos: GenerarImagenRequest }
+  | { tipo: 'foto'; datos: EstilizarFotoRequest };
 
 /**
  * Encola una generación y sigue su progreso.
@@ -20,8 +29,13 @@ export function useGeneracion() {
   const [jobId, setJobId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // Una sola mutación para los dos caminos: la cola y el polling de estado son
+  // idénticos, solo cambia el endpoint que encola.
   const mutacion = useMutation({
-    mutationFn: (request: GenerarImagenRequest) => api.generar(request),
+    mutationFn: (peticion: PeticionGeneracion) =>
+      peticion.tipo === 'texto'
+        ? api.generar(peticion.datos)
+        : api.estilizarFoto(peticion.datos),
     onSuccess: ({ jobId }) => setJobId(jobId),
   });
 
@@ -58,7 +72,15 @@ export function useGeneracion() {
   const generar = useCallback(
     (request: GenerarImagenRequest) => {
       setJobId(null);
-      mutacion.mutate(request);
+      mutacion.mutate({ tipo: 'texto', datos: request });
+    },
+    [mutacion],
+  );
+
+  const estilizarFoto = useCallback(
+    (request: EstilizarFotoRequest) => {
+      setJobId(null);
+      mutacion.mutate({ tipo: 'foto', datos: request });
     },
     [mutacion],
   );
@@ -73,6 +95,7 @@ export function useGeneracion() {
 
   return {
     generar,
+    estilizarFoto,
     reiniciar,
     /** True desde que se pulsa el botón hasta que hay imagen o error. */
     generando:

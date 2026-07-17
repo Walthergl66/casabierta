@@ -7,7 +7,7 @@ import {
   FORMATO_A_PRISMA,
   FormatoApi,
 } from '../common/domain/catalogo';
-import { Prompt } from '../generated/prisma/client';
+import { Origen, Prompt } from '../generated/prisma/client';
 import { PrismaService } from './prisma.service';
 
 export interface CrearPromptInput {
@@ -17,6 +17,7 @@ export interface CrearPromptInput {
   readonly formato: FormatoApi;
   readonly calidad: CalidadApi;
   readonly proveedor: string;
+  readonly origen: Origen;
 }
 
 /** Acceso a la tabla `prompts`. */
@@ -33,6 +34,7 @@ export class PromptRepository {
         formato: FORMATO_A_PRISMA[input.formato],
         calidad: CALIDAD_A_PRISMA[input.calidad],
         proveedor: input.proveedor,
+        origen: input.origen,
       },
     });
   }

@@ -16,9 +16,11 @@ import {
   GenerationQueueService,
 } from '../services/generation-queue.service';
 import { GenerationDto, GenerationService } from '../services/generation.service';
+import { estilizarFotoSchema } from './dto/estilizar-foto.dto';
 import { generarImagenSchema } from './dto/generar-imagen.dto';
 // `import type` es obligatorio: con emitDecoratorMetadata, un tipo usado en una
 // firma decorada no puede importarse como valor.
+import type { EstilizarFotoDto } from './dto/estilizar-foto.dto';
 import type { GenerarImagenDto } from './dto/generar-imagen.dto';
 
 const historialQuerySchema = z.object({
@@ -44,6 +46,21 @@ export class GenerationController {
   @UsePipes(new ZodValidationPipe(generarImagenSchema))
   async generar(@Body() dto: GenerarImagenDto): Promise<{ jobId: string }> {
     const jobId = await this.cola.encolar(dto);
+    return { jobId };
+  }
+
+  /**
+   * Encola el estilizado de una foto de la cámara.
+   *
+   * La foto viaja en el cuerpo como data URL y **no se almacena**: solo se pasa
+   * al proveedor. El resultado se marca con origen FOTO y queda fuera de la
+   * galería y del historial públicos.
+   */
+  @Post('photo')
+  @HttpCode(202)
+  @UsePipes(new ZodValidationPipe(estilizarFotoSchema))
+  async estilizarFoto(@Body() dto: EstilizarFotoDto): Promise<{ jobId: string }> {
+    const jobId = await this.cola.encolarFoto(dto);
     return { jobId };
   }
 

@@ -32,6 +32,23 @@ export interface GenerarImagenRequest {
   seed?: number;
 }
 
+export interface EstilizarFotoRequest {
+  /** Data URL JPEG/PNG/WebP producida por el canvas. */
+  foto: string;
+  estilo: Estilo;
+  /** Petición extra opcional del usuario. */
+  nota?: string;
+}
+
+export interface Salud {
+  status: string;
+  proveedor: string;
+  mejorador: string;
+  /** Si es false, se oculta la pestaña de cámara. */
+  camaraDisponible: boolean;
+  uptime: number;
+}
+
 export interface Generacion {
   id: string;
   imageUrl: string;

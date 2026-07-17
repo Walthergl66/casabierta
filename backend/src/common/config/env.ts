@@ -32,6 +32,16 @@ export const envSchema = z
       .enum(['pollinations', 'openai', 'google', 'flux', 'stability'])
       .default('pollinations'),
 
+    /**
+     * Proveedor para estilizar fotos (imagen a imagen). Va aparte de
+     * IMAGE_PROVIDER a propósito: Pollinations es gratis pero NO sabe editar
+     * fotos (verificado: ignora la imagen de entrada). Así los prompts de texto
+     * siguen saliendo gratis y solo las fotos, que son pocas, cuestan dinero.
+     *
+     * Con "none" la función de cámara queda desactivada y el frontend la oculta.
+     */
+    IMAGE_EDIT_PROVIDER: z.enum(['none', 'openai']).default('none'),
+
     OPENAI_API_KEY: z.string().optional(),
     GOOGLE_API_KEY: z.string().optional(),
     FLUX_API_KEY: z.string().optional(),
@@ -56,6 +66,15 @@ export const envSchema = z
         code: 'custom',
         path: [requerida],
         message: `IMAGE_PROVIDER="${env.IMAGE_PROVIDER}" requiere que ${requerida} esté definida.`,
+      });
+    }
+
+    if (env.IMAGE_EDIT_PROVIDER === 'openai' && !env.OPENAI_API_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['OPENAI_API_KEY'],
+        message:
+          'IMAGE_EDIT_PROVIDER="openai" requiere OPENAI_API_KEY (la usa la función de cámara).',
       });
     }
 

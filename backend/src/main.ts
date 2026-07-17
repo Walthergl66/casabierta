@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import express from 'express';
 import helmet from 'helmet';
 import Redis from 'ioredis';
 import { Logger } from 'nestjs-pino';
@@ -69,6 +70,12 @@ async function bootstrap(): Promise<void> {
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
+
+  // Las fotos de la cámara llegan como data URL en el cuerpo JSON. El límite
+  // por defecto de Express son 100 KB: sin esto, cualquier foto se rechaza con
+  // un 413 antes siquiera de llegar al controlador. 8 MB deja margen sobre el
+  // tope de 6 MB que valida el DTO, contando el ~33 % que abulta el base64.
+  app.use(express.json({ limit: '8mb' }));
 
   app.enableCors({
     origin: config

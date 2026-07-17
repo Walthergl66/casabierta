@@ -20,6 +20,8 @@ fluidez > impacto visual > exhaustividad de features.
 | Redis | Local vía Docker Compose | El usuario no tiene Upstash todavía; migrable cambiando `REDIS_URL` |
 | Proveedor por defecto | `pollinations` | Gratis y sin API key: no se agotan créditos durante el evento |
 | Otros proveedores | Implementados pero inactivos | Se activan solo con `IMAGE_PROVIDER=` |
+| Cámara (foto → imagen) | OpenAI `gpt-image-1`, variable **aparte** (`IMAGE_EDIT_PROVIDER`) | Pollinations **no sabe editar fotos**; separarlo mantiene el texto gratis |
+| Fotos en la galería | **Nunca se publican** | Pueden llevar la cara de un visitante |
 | Gestor de paquetes | npm workspaces | Node 24 / npm 11 en la máquina |
 
 ## Estructura
@@ -65,11 +67,13 @@ Leyenda: ✅ hecho · 🚧 en curso · ⬜ pendiente
 
 ## Estado del entorno del usuario
 
-Todo listo (2026-07-17). Proyecto Supabase `cxafxjrvjnzibcesmadx`, región `ca-central-1`.
+Proyecto Supabase `cxafxjrvjnzibcesmadx`, región `ca-central-1`.
 
 - `backend/.env` relleno y probado. `credenciales.env` es la hoja de trabajo (en `.gitignore`).
-- Migración `init` aplicada: las 3 tablas existen en Supabase.
+- Migraciones `init` y `origen_foto` aplicadas.
 - Bucket `images` creado y **público** (límite 10 MB, solo png/jpeg/webp).
+- ⬜ **Falta `OPENAI_API_KEY`** para activar la cámara. Sin ella,
+  `IMAGE_EDIT_PROVIDER=none` y la pestaña de foto se oculta; el resto funciona igual.
 
 ## Qué está verificado
 
@@ -82,6 +86,23 @@ Probado ejecutando el código contra la infraestructura real:
 - Validación de entorno: rechaza config incompleta y exige la clave del proveedor.
 - Endpoints de health, inspiración, galería e historial; errores 400 y 404 con su forma.
 - Cola BullMQ con progreso real (30 % → 75 % → 100 %).
+
+### Cámara: qué está verificado y qué NO
+
+Verificado ejecutando (2026-07-17):
+
+- El entorno rechaza `IMAGE_EDIT_PROVIDER=openai` sin `OPENAI_API_KEY`, y con `none` el
+  backend arranca y `/api/health` responde `camaraDisponible: false`.
+- Con la cámara apagada, `POST /api/generations/photo` falla con un mensaje entendible.
+- El cuerpo de 129 KB pasa: el límite de Express está subido a 8 MB (por defecto son
+  100 KB y **toda** foto daría 413).
+- **La regla de privacidad, contra la base de datos real**: una fila `TEXTO` entra en la
+  galería; una `FOTO` no entra ni en la galería ni en el historial.
+
+⚠️ **Sin verificar: la llamada real a `/v1/images/edits` de OpenAI.** No hay clave. El
+código sigue la forma documentada de `gpt-image-1`, pero nadie ha visto una foto
+estilizada de verdad. Al poner la clave, lo primero es hacerse una foto y confirmar que
+sale y que la cara se reconoce.
 
 ### Aviso: Pollinations es irregular
 
@@ -150,6 +171,48 @@ arreglable desde la máquina: depende del ISP. Se usa el pooler, que sí tiene I
 
 Ambos en `aws-0-ca-central-1.pooler.supabase.com`. Si alguna vez ves
 `Tenant or user not found`, la región del hostname está mal.
+
+### Pollinations NO sabe editar fotos — no lo intentes otra vez
+
+Comprobado a fondo el 2026-07-17. Si alguien propone usar Pollinations para la cámara y
+ahorrarse OpenAI, esto es lo que se midió:
+
+- `GET /models` devuelve **solo `sana`** (texto a imagen).
+- `model=kontext` y `model=nanobanana` → HTTP 500:
+  *"kontext model is only available on enter.pollinations.ai"*.
+- `model=flux` y `model=gptimage` → **bytes idénticos**: ignora el parámetro y usa `sana`.
+- Con `image=<url>` y "make it anime": devolvió un personaje anime **sin ninguna relación**
+  con la foto de entrada (un dragón de cristal sobre una ciudad).
+- El parámetro `image` **sí** cambia el resultado, pero solo perturba el ruido. Se confirmó
+  con un control: dos peticiones idénticas con la misma semilla dan bytes idénticos, así
+  que la diferencia no es aleatoriedad — pero el contenido de la foto no se usa.
+
+Conclusión: imagen-a-imagen exige un proveedor de pago. Está implementado
+`OpenAIEditProvider` (`gpt-image-1`, endpoint `/v1/images/edits`) con
+`input_fidelity: high`, que es lo que evita que el modelo reinvente la cara.
+
+### Las fotos de visitantes no se publican: hay dos puertas, no una
+
+La regla vive en `GenerationRepository`, no en el servicio, para que ningún futuro
+llamante pueda saltársela por descuido:
+
+1. `crearYPublicar()` solo crea la fila de galería si `prompt.origen === 'TEXTO'`.
+2. `recientes()` (el historial) filtra por `origen: 'TEXTO'`.
+
+**La segunda es fácil de olvidar**: el historial «Creaciones recientes» se pinta en la
+portada y es tan público como la galería. Excluir solo la galería dejaría la cara del
+visitante en la home igualmente.
+
+Además, la foto original **nunca se persiste**: viaja al proveedor dentro del trabajo de
+BullMQ y se purga con él (`removeOnComplete: { age: 600 }`, más agresivo que en texto).
+Solo se guarda el resultado estilizado.
+
+### La cámara del navegador exige HTTPS
+
+`getUserMedia` solo existe en contexto seguro: **HTTPS o localhost**. Si el día del evento
+sirves el frontend por IP de la red local (`http://192.168.x.x`), el navegador no pedirá
+permiso — fallará directamente. `use-camara.ts` detecta `window.isSecureContext` y lo
+explica, pero la solución es servir por HTTPS o usar localhost en el equipo del evento.
 
 ### Redis: se comprueba al arrancar, y es a propósito
 

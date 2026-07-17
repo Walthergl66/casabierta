@@ -6,6 +6,9 @@ en segundos. Hecho para la Casa Abierta del **Club de Inteligencia Artificial**.
 > **Entrada** — _Un gato astronauta comiendo pizza en Marte con estilo Pixar._
 > **Salida** — una imagen lista para descargar, compartir y ver a pantalla completa.
 
+Y también al revés: **hazte una foto con la cámara** y conviértete en anime, Pixar o
+cyberpunk. Esas fotos no se publican en la galería.
+
 ---
 
 ## Stack
@@ -84,7 +87,8 @@ Abre **http://localhost:3000**.
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | **Secreto.** Nunca al navegador. |
 | `SUPABASE_STORAGE_BUCKET` | | Por defecto `images`. |
 | `REDIS_URL` | ✅ | `redis://localhost:6379` o la URL `rediss://` de Upstash. |
-| `IMAGE_PROVIDER` | | `pollinations` (por defecto) · `openai` · `google` · `flux` · `stability` |
+| `IMAGE_PROVIDER` | | Texto → imagen. `pollinations` (por defecto) · `openai` · `google` · `flux` · `stability` |
+| `IMAGE_EDIT_PROVIDER` | | **Función de cámara.** `none` (por defecto) · `openai`. Ver abajo. |
 | `PROMPT_ENHANCER` | | `none` (por defecto) · `openai` · `anthropic` |
 | `OPENAI_API_KEY` etc. | | Solo si activas ese proveedor. |
 | `CORS_ORIGIN` | | Origen del frontend. Por defecto `http://localhost:3000`. |
@@ -117,6 +121,47 @@ factory a partir de la variable. Para añadir uno nuevo: implementa la interfaz,
 **Para la Casa Abierta se recomienda `pollinations`**: es gratis y sin API key, así que
 cientos de visitantes no agotan ningún crédito. A cambio puede ir lento cuando su servicio
 está saturado.
+
+---
+
+## La función de cámara
+
+El visitante se hace una foto y elige un estilo; la IA le devuelve su retrato convertido
+en anime, Pixar, cyberpunk… Está **desactivada por defecto**.
+
+### Por qué no es gratis
+
+`IMAGE_EDIT_PROVIDER` es una variable **aparte** de `IMAGE_PROVIDER`, y no por capricho:
+**Pollinations no sabe editar fotos.** Está comprobado — ignora la imagen de entrada y su
+modelo de edición (`kontext`) exige cuenta de pago. Separar las dos variables permite que
+los prompts de texto sigan siendo gratis y que solo las fotos cuesten dinero.
+
+### Activarla
+
+```bash
+IMAGE_EDIT_PROVIDER=openai
+OPENAI_API_KEY=sk-...        # platform.openai.com/api-keys (necesita saldo)
+```
+
+Coste aproximado: **0,02–0,19 $ por foto** con `gpt-image-1`. Unas 300 fotos salen por
+6–15 $. Mientras `IMAGE_EDIT_PROVIDER=none`, la pestaña de cámara ni siquiera aparece.
+
+### Privacidad
+
+Decisiones deliberadas, no accidentes:
+
+- **La foto original no se guarda nunca.** Viaja al proveedor y se descarta con el trabajo
+  de la cola. Solo se persiste el resultado estilizado.
+- **El resultado no se publica**: ni en la galería ni en el historial de la portada. Ambos
+  son públicos y podrían mostrar la cara de un visitante en una pantalla del evento.
+- La regla vive en el repositorio, no en el servicio, para que no se pueda saltar por
+  descuido desde otro sitio.
+
+### ⚠️ La cámara necesita HTTPS
+
+`getUserMedia` solo funciona en **HTTPS o localhost**. Si el día del evento sirves el
+frontend por IP de la red local (`http://192.168.x.x`), el navegador **no** pedirá permiso
+y la cámara fallará. Usa localhost en el equipo del evento, o sirve por HTTPS.
 
 ---
 

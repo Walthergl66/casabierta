@@ -40,3 +40,39 @@ export interface ImageProvider {
    */
   generar(request: ImageGenerationRequest): Promise<ImageGenerationResult>;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Edición de imagen (imagen a imagen)
+// ─────────────────────────────────────────────────────────────
+
+/** Token de inyección del proveedor de edición. Puede ser null si está apagada. */
+export const IMAGE_EDIT_PROVIDER = Symbol('IMAGE_EDIT_PROVIDER');
+
+export interface ImageEditRequest {
+  /** Instrucción de estilo. Describe la transformación, no la escena. */
+  readonly prompt: string;
+  /** Bytes de la foto original. Nunca se persisten: solo viajan al proveedor. */
+  readonly imagen: Buffer;
+  readonly mimeType: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Contrato para estilizar una foto existente.
+ *
+ * Va aparte de `ImageProvider` porque son capacidades distintas: Pollinations
+ * genera imágenes pero **no** sabe editarlas (comprobado — ignora la imagen de
+ * entrada y devuelve algo sin relación). Separarlos evita que el resto del
+ * código asuma que todo proveedor puede hacer las dos cosas.
+ */
+export interface ImageEditProvider {
+  readonly nombre: string;
+
+  /**
+   * Reinterpreta una foto con el estilo pedido.
+   * @throws {ImageProviderError} si el proveedor falla o agota el tiempo.
+   * @throws {ContentPolicyError} si la foto o el prompt infringen sus políticas.
+   */
+  editar(request: ImageEditRequest): Promise<ImageGenerationResult>;
+}
